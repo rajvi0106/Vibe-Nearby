@@ -7,6 +7,10 @@ import useManualLocation from "../../hooks/useManualLocation.js";
 import { useState } from "react";   
 import { moodToPlaceType } from "../../constants/moodSelectorconfig.js";
 import { budgetLevels, priceLevelRank } from "../../constants/budgetSelectorconfig.js";
+import MapView from "./Mapview.jsx";
+import ResultsList from "./Results.jsx";
+
+
 function Explore() {  
     const { location: gpsLocation, getLocation, loading: gpsLoading, error: gpsError } = useLocation();
     const { location: manualLocation, geocodeAddress, loading: manualLoading, error: manualError } = useManualLocation();
@@ -17,6 +21,7 @@ function Explore() {
     const [searchloading,setSearchLoading]=useState(false);
     const [searchError,setSearchError] =useState(null);
     const [Results,setResults]=useState([]);
+    const [selectedPlaceId, setSelectedPlaceId]=useState(null);
 
     const finalLocation = mode === "gps" ? gpsLocation : manualLocation;
 
@@ -49,7 +54,7 @@ function Explore() {
                     "Content-Type": "application/json",
                     "X-Goog-Api-Key": import.meta.env.VITE_PLACES_API_KEY,
                     "X-Goog-FieldMask":
-                    "places.displayName,places.formattedAddress,places.rating,places.location,places.currentOpeningHours,places.priceLevel",
+                    ",places.id,places.displayName,places.formattedAddress,places.rating,places.location,places.currentOpeningHours,places.priceLevel",
                 },
                 body:JSON.stringify({
                     includedTypes: types,
@@ -76,9 +81,11 @@ function Explore() {
         })
         setResults(filtered);
         console.log(places);
+        setSelectedPlaceId(null);
     } catch (error) {
         setSearchError(error.message);
         setResults([]);
+        setSelectedPlaceId(null);
     } finally{
         setSearchLoading(false);
     };
@@ -87,9 +94,9 @@ function Explore() {
   const canSearch = selectedMood && Budget && finalLocation
     return (
         <>
-        <div className="bg-purple-400 h-screen">
+        <div className="bg-purple-400 min-h-screen">
             <MoodSelector selectedMood={selectedMood} onSelect={setSelectedMood}/>
-            <BudgetSelector budget={Budget} onBudgetChange={setBudget}/>
+            <BudgetSelector Budget={Budget} onBudgetChange={setBudget}/>
             <LocationPermission
                 mode={mode}
                 onAllow={handleAllow}
@@ -120,6 +127,27 @@ function Explore() {
                 No places found nearby for this mood and budget. Try a different combination.
                 </p>
             )}
+
+            {Results.length > 0 && (
+                <div className="flex flex-col md:flex-row h-screen">
+                <div className="w-full md:w-1/2 h-96 md:h-full">
+                    <MapView
+                        center={{ lat: finalLocation.lat, lng: finalLocation.lng }}
+                        results={Results}
+                        selectedPlaceId={selectedPlaceId}
+                        onMarkerClick={setSelectedPlaceId}
+                    />
+                </div>
+                <div className="w-full md:w-1/2 overflow-y-auto h-full">
+                    <ResultsList
+                        results={Results}
+                        selectedPlaceId={selectedPlaceId}
+                        onSelect={setSelectedPlaceId}
+                    />
+                </div>
+                </div>
+            )}
+
         </div>
         </>
     );
